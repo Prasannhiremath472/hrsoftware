@@ -1,0 +1,28 @@
+{
+  "name": "hrsoftware-biometric-agent",
+  "version": "1.0.0",
+  "description": "Local Windows agent bridging the Mantra MFS110 non-Aadhaar SDK to the browser over localhost HTTP",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "build:exe": "pkg . --targets node18-win-x64 --output dist/hrsoftware-biometric-agent.exe"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "koffi": "^2.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "pkg": {
+    "assets": ["node_modules/koffi/build/**/*"],
+    "outputPath": "dist"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

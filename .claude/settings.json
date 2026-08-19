@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd /d/hrsoftware/frontend && rm -f src/index.css.bak && ls src/index.css)",
+      "Bash(cd /d/hrsoftware/frontend && rm -f src/index.css && cat src/main.jsx 2>/dev/null | head -5; echo ---; find src -name \"*.tsx\" -o -name \"*.ts\" | sort)",
+      "Bash(mv src/styles/globals.css src/index.css)",
+      "Bash(rmdir src/styles)",
+      "Bash(echo \"TSC:$?\")",
+      "Bash(cat /tmp/backend_paginate.log)",
+      "Read(//tmp/**)",
+      "Bash(flutter --version)",
+      "Bash(dart --version)"
+    ]
+  }
+}

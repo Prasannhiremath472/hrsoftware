@@ -1,0 +1,11 @@
+node_modules/
+.env
+storage/documents/*
+storage/photos/*
+storage/signatures/*
+!storage/documents/.gitkeep
+!storage/photos/.gitkeep
+!storage/signatures/.gitkeep
+npm-debug.log*
+coverage/
+*.log

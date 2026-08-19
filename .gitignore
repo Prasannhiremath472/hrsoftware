@@ -1,0 +1,15 @@
+node_modules/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+frontend/dist/
+frontend/node_modules/
+backend/node_modules/
+backend/storage/documents/*
+backend/storage/photos/*
+backend/storage/signatures/*
+!backend/storage/documents/.gitkeep
+!backend/storage/photos/.gitkeep
+!backend/storage/signatures/.gitkeep

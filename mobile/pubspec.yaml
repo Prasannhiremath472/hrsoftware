@@ -1,0 +1,63 @@
+name: mobile
+description: "HR KYC Onboarding - Super Admin mobile companion"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.6.1
+
+  # Networking
+  dio: ^5.7.0
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Secure storage for JWT
+  flutter_secure_storage: ^9.2.2
+
+  # Camera + image capture
+  camera: ^0.11.0+2
+  image_picker: ^1.1.2
+
+  # Signature capture
+  signature: ^5.5.0
+
+  # File picking (documents from device storage)
+  file_picker: ^8.1.4
+
+  # Charts
+  fl_chart: ^0.69.2
+
+  # Loading skeletons / polish
+  shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
+
+  # Typography
+  google_fonts: ^6.2.1
+
+  # Open PDFs / external links fallback
+  url_launcher: ^6.3.1
+
+  # Env config
+  flutter_dotenv: ^5.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
