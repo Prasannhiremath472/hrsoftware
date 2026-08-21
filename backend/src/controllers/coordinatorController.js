@@ -2,6 +2,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { ok, created, fail } = require('../utils/response');
 const coordinatorModel = require('../models/coordinatorModel');
 const auditLogModel = require('../models/auditLogModel');
+const adminNotificationService = require('../services/adminNotificationService');
 
 const create = asyncHandler(async (req, res) => {
   const coordinator = await coordinatorModel.create(req.body);
@@ -14,6 +15,10 @@ const create = asyncHandler(async (req, res) => {
     ipAddress: auditLogModel.ipFromReq(req),
     userAgent: req.headers['user-agent'],
   });
+
+  // Best-effort admin notification — never blocks or fails coordinator creation.
+  await adminNotificationService.notifyCoordinatorCreated(coordinator);
+
   return created(res, coordinator, 'Coordinator created');
 });
 

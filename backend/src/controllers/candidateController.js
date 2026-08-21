@@ -5,6 +5,7 @@ const coordinatorModel = require('../models/coordinatorModel');
 const auditLogModel = require('../models/auditLogModel');
 const statusHistoryModel = require('../models/statusHistoryModel');
 const submitValidationService = require('../services/submitValidationService');
+const adminNotificationService = require('../services/adminNotificationService');
 const { pool, withTransaction } = require('../db/pool');
 
 const create = asyncHandler(async (req, res) => {
@@ -102,6 +103,9 @@ const submit = asyncHandler(async (req, res) => {
     ipAddress: auditLogModel.ipFromReq(req),
     userAgent: req.headers['user-agent'],
   });
+
+  // Best-effort admin notification — never blocks or fails the submission itself.
+  await adminNotificationService.notifyCandidateSubmitted(candidate);
 
   return ok(res, candidate, 'Application submitted successfully');
 });

@@ -34,40 +34,55 @@ function RouteFallback() {
 
 export default function App() {
   return (
-    <Suspense fallback={<RouteFallback />}>
-      <Routes>
-        <Route path="/login" element={<Login />} />
+    <Routes>
+      <Route path="/login" element={<Login />} />
 
-        {/* Printable summary renders outside the app chrome. */}
-        <Route
-          path="/candidates/:id/summary"
-          element={
-            <ProtectedRoute>
+      {/* Printable summary renders outside the app chrome — its own Suspense
+          boundary, since it isn't nested under MainLayout's. */}
+      <Route
+        path="/candidates/:id/summary"
+        element={
+          <ProtectedRoute>
+            <Suspense fallback={<RouteFallback />}>
               <CandidateSummary />
-            </ProtectedRoute>
-          }
-        />
+            </Suspense>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/coordinators" element={<Coordinators />} />
-          <Route path="/candidates" element={<Candidates />} />
-          <Route path="/candidates/new" element={<CandidateRegister />} />
-          <Route path="/candidates/:id" element={<CandidateWizard />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/audit-logs" element={<AuditLogs />} />
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        </Route>
+      {/*
+        No Suspense here around the MainLayout route: MainLayout owns its own
+        boundary scoped to just its <Outlet />, so the sidebar/header never
+        unmount when a lazy page chunk is loading. Wrapping this whole
+        element in Suspense would suspend MainLayout itself, flashing out the
+        entire shell on every first navigation to a not-yet-loaded route.
+      */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <MainLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/coordinators" element={<Coordinators />} />
+        <Route path="/candidates" element={<Candidates />} />
+        <Route path="/candidates/new" element={<CandidateRegister />} />
+        <Route path="/candidates/:id" element={<CandidateWizard />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/audit-logs" element={<AuditLogs />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      </Route>
 
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+      <Route
+        path="*"
+        element={
+          <Suspense fallback={<RouteFallback />}>
+            <NotFound />
+          </Suspense>
+        }
+      />
+    </Routes>
   );
 }

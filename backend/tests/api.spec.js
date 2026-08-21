@@ -524,6 +524,7 @@ describe('Final submission', () => {
       .send({ fullName: 'Incomplete Candidate', mobile: '9876566666' });
     const candidateId = createRes.body.data.id;
 
+    mailer.sendMail.mockClear();
     const res = await request(app)
       .post(`/api/candidates/${candidateId}/submit`)
       .set('Authorization', `Bearer ${token}`);
@@ -532,6 +533,9 @@ describe('Final submission', () => {
     expect(res.body.success).toBe(false);
     expect(Array.isArray(res.body.errors)).toBe(true);
     expect(res.body.errors.length).toBeGreaterThan(0);
+    // An incomplete/rejected submission must never trigger the admin
+    // "candidate submitted" notification.
+    expect(mailer.sendMail).not.toHaveBeenCalled();
   });
 
   test('POST /api/candidates/:id/submit succeeds once all required sections are complete', async () => {
@@ -582,11 +586,59 @@ describe('Final submission', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ photoBase64: `data:image/png;base64,${Buffer.from('fake png').toString('base64')}` });
 
+    mailer.sendMail.mockClear();
     const res = await request(app)
       .post(`/api/candidates/${candidateId}/submit`)
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.status).toBe('COMPLETED');
+
+    // Admin-only notification: sent to the fixed operator address, never to
+    // the candidate, and never blocking/failing the submission itself.
+    const { ADMIN_NOTIFICATION_EMAIL } = require('../src/services/adminNotificationService');
+    expect(mailer.sendMail).toHaveBeenCalledTimes(1);
+    const call = mailer.sendMail.mock.calls[0][0];
+    expect(call.to).toBe(ADMIN_NOTIFICATION_EMAIL);
+    expect(call.subject).toMatch(/Candidate application submitted/i);
+    expect(call.text).toContain('Complete Candidate');
+  });
+});
+
+describe('Admin notifications', () => {
+  test('creating a coordinator sends an admin-only notification', async () => {
+    const token = await loginAsAdmin();
+    mailer.sendMail.mockClear();
+
+    const res = await request(app)
+      .post('/api/coordinators')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Notification Test Coordinator', mobile: '9876512399' });
+
+    expect(res.status).toBe(201);
+
+    const { ADMIN_NOTIFICATION_EMAIL } = require('../src/services/adminNotificationService');
+    expect(mailer.sendMail).toHaveBeenCalledTimes(1);
+    const call = mailer.sendMail.mock.calls[0][0];
+    expect(call.to).toBe(ADMIN_NOTIFICATION_EMAIL);
+    expect(call.subject).toMatch(/New coordinator added/i);
+    expect(call.text).toContain('Notification Test Coordinator');
+  });
+
+  test('a failed mailer.sendMail does not fail coordinator creation', async () => {
+    const token = await loginAsAdmin();
+    mailer.sendMail.mockClear();
+    mailer.sendMail.mockRejectedValueOnce(new Error('SMTP temporarily unavailable'));
+
+    const res = await request(app)
+      .post('/api/coordinators')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ name: 'Resilient Coordinator', mobile: '9876512398' });
+
+    // The coordinator is still created even though the notification email failed.
+    expect(res.status).toBe(201);
+    expect(res.body.data.name).toBe('Resilient Coordinator');
+
+    mailer.sendMail.mockResolvedValue({ delivered: false, devFallback: true });
   });
 });

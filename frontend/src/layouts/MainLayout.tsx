@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -16,6 +16,24 @@ import { cn, initialsFrom } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
+import { Skeleton } from '@/components/ui/skeleton';
+
+/**
+ * Fallback shown only inside the content area while a lazy route chunk
+ * loads — deliberately scoped here (not wrapping MainLayout itself) so the
+ * sidebar/header never unmount on navigation. A Suspense boundary above the
+ * whole app shell would suspend MainLayout too, causing the entire chrome to
+ * flash out and back in on every first visit to a not-yet-loaded page.
+ */
+function RouteFallback() {
+  return (
+    <div className="space-y-4" role="status" aria-label="Loading page">
+      <Skeleton className="h-9 w-56" />
+      <Skeleton className="h-64 w-full" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
 
 interface NavItem {
   to: string;
@@ -137,7 +155,9 @@ export default function MainLayout() {
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6">
-          <Outlet />
+          <Suspense fallback={<RouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>
