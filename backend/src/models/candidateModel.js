@@ -29,14 +29,14 @@ async function findById(id) {
     `SELECT c.*, co.name AS coordinator_name, co.status AS coordinator_status
      FROM candidates c
      LEFT JOIN coordinators co ON co.id = c.coordinator_id
-     WHERE c.id = ? LIMIT 1`,
+     WHERE c.id = ? AND c.deleted_at IS NULL LIMIT 1`,
     [id]
   );
   return rows[0] || null;
 }
 
-async function list({ page = 1, limit = 20, search, coordinatorId, status, dateFrom, dateTo }) {
-  const conditions = [];
+async function list({ page = 1, limit = 20, search, coordinatorId, status, dateFrom, dateTo, deleted = false }) {
+  const conditions = [deleted ? 'c.deleted_at IS NOT NULL' : 'c.deleted_at IS NULL'];
   const params = [];
 
   if (search) {
@@ -114,4 +114,48 @@ async function updateStatus(id, newStatus, changedBy, remarks, conn = pool) {
   return findById(id);
 }
 
-module.exports = { create, findById, list, update, updateCoordinator, updateStep, updateStatus };
+/**
+ * Soft delete — sets deleted_at/deleted_by rather than removing the row, so
+ * every related table (KYC, address, documents, biometrics, etc.) stays
+ * intact and the candidate can be restored later.
+ */
+async function softDelete(id, deletedBy) {
+  await pool.query('UPDATE candidates SET deleted_at = NOW(), deleted_by = ? WHERE id = ? AND deleted_at IS NULL', [
+    deletedBy || null,
+    id,
+  ]);
+}
+
+async function restore(id) {
+  await pool.query('UPDATE candidates SET deleted_at = NULL, deleted_by = NULL WHERE id = ? AND deleted_at IS NOT NULL', [
+    id,
+  ]);
+  return findById(id);
+}
+
+/** Looks up a candidate regardless of deleted state — used by delete/restore
+ * actions themselves, which need to operate on a candidate findById() would
+ * otherwise hide. */
+async function findByIdIncludingDeleted(id) {
+  const [rows] = await pool.query(
+    `SELECT c.*, co.name AS coordinator_name, co.status AS coordinator_status
+     FROM candidates c
+     LEFT JOIN coordinators co ON co.id = c.coordinator_id
+     WHERE c.id = ? LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+module.exports = {
+  create,
+  findById,
+  findByIdIncludingDeleted,
+  list,
+  update,
+  updateCoordinator,
+  updateStep,
+  updateStatus,
+  softDelete,
+  restore,
+};

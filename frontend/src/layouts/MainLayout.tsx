@@ -7,6 +7,7 @@ import {
   BarChart3,
   Settings as SettingsIcon,
   ScrollText,
+  Trash2,
   LogOut,
   Menu,
 } from 'lucide-react';
@@ -50,6 +51,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/reports', label: 'Reports', icon: BarChart3 },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
   { to: '/audit-logs', label: 'Audit Logs', icon: ScrollText },
+  { to: '/trash', label: 'Trash', icon: Trash2 },
 ];
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

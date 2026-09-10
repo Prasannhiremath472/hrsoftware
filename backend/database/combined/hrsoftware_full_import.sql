@@ -1,8 +1,6 @@
 -- ============================================================================
--- COMBINED IMPORT: schema + migrations 002, 003 + seed data
--- Generated for a single phpMyAdmin import. Idempotent (safe to re-run):
--- tables use CREATE TABLE IF NOT EXISTS, seed rows use ON DUPLICATE KEY UPDATE
--- or a WHERE NOT EXISTS guard.
+-- Combined import for phpMyAdmin — schema + migrations + seed data
+-- Generated from schema.sql + migrations/*.sql + seed.sql
 -- ============================================================================
 
 -- ============================================================================
@@ -91,13 +89,19 @@ CREATE TABLE IF NOT EXISTS candidates (
   created_by INT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- Soft delete: NULL means active. Deleted candidates keep all related data
+  -- (KYC, documents, biometrics, etc.) intact and can be restored from Trash.
+  deleted_at DATETIME NULL DEFAULT NULL,
+  deleted_by INT UNSIGNED NULL DEFAULT NULL,
   CONSTRAINT fk_candidates_coordinator FOREIGN KEY (coordinator_id) REFERENCES coordinators(id) ON DELETE SET NULL,
   CONSTRAINT fk_candidates_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_candidates_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_candidates_number (candidate_number),
   INDEX idx_candidates_coordinator (coordinator_id),
   INDEX idx_candidates_status (status),
   INDEX idx_candidates_mobile (mobile),
-  INDEX idx_candidates_created_at (created_at)
+  INDEX idx_candidates_created_at (created_at),
+  INDEX idx_candidates_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------
@@ -313,9 +317,8 @@ CREATE TABLE IF NOT EXISTS application_settings (
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ============================================================================
--- Migration 002 — fingerprint templates
+-- Migration 002
 -- ============================================================================
-
 -- ============================================================================
 -- Migration 002 — Real fingerprint templates (Mantra non-Aadhaar SDK)
 --
@@ -429,9 +432,8 @@ SELECT 'fingerprint_duplicate_check_on_capture', 'true'
 WHERE NOT EXISTS (SELECT 1 FROM application_settings WHERE setting_key = 'fingerprint_duplicate_check_on_capture');
 
 -- ============================================================================
--- Migration 003 — candidate document checklist selection
+-- Migration 003
 -- ============================================================================
-
 -- ============================================================================
 -- Migration 003 — Persist the document checklist selection
 --
@@ -459,9 +461,29 @@ CREATE TABLE IF NOT EXISTS candidate_document_selection (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================================================
--- Seed data
+-- Migration 004
+-- ============================================================================
+-- ============================================================================
+-- Migration 004 — Soft delete for candidates
+--
+-- Candidates can now be "deleted" from the admin UI without destroying data —
+-- deleted_at is set instead of removing the row, so every related table
+-- (KYC, address, documents, biometrics, etc.) stays intact and the candidate
+-- can be restored later from the Trash page. NULL means active/not deleted.
+--
+-- Apply with:
+--   mysql -u <user> -p <db> < backend/database/migrations/004_candidate_soft_delete.sql
 -- ============================================================================
 
+ALTER TABLE candidates
+  ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL AFTER updated_at,
+  ADD COLUMN deleted_by INT UNSIGNED NULL DEFAULT NULL AFTER deleted_at,
+  ADD CONSTRAINT fk_candidates_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL,
+  ADD INDEX idx_candidates_deleted_at (deleted_at);
+
+-- ============================================================================
+-- Seed data
+-- ============================================================================
 -- ============================================================================
 -- Seed data: document types + demo coordinators/candidates
 -- Admin user is NOT seeded here — use backend/scripts/seedAdmin.js

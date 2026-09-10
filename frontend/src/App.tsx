@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Coordinators = lazy(() => import('@/pages/Coordinators'));
 const Candidates = lazy(() => import('@/pages/Candidates'));
+const Trash = lazy(() => import('@/pages/Trash'));
 const CandidateWizard = lazy(() => import('@/pages/onboarding/CandidateWizard'));
 const CandidateSummary = lazy(() => import('@/pages/CandidateSummary'));
 const Reports = lazy(() => import('@/pages/Reports'));
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/coordinators" element={<Coordinators />} />
         <Route path="/candidates" element={<Candidates />} />
+        <Route path="/trash" element={<Trash />} />
         <Route path="/candidates/new" element={<CandidateWizard />} />
         <Route path="/candidates/:id" element={<CandidateWizard />} />
         <Route path="/reports" element={<Reports />} />

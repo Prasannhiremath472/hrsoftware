@@ -642,3 +642,76 @@ describe('Admin notifications', () => {
     mailer.sendMail.mockResolvedValue({ delivered: false, devFallback: true });
   });
 });
+
+describe('Candidate soft delete', () => {
+  async function createCandidate(token, overrides = {}) {
+    const res = await request(app)
+      .post('/api/candidates')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ fullName: 'Delete Test Candidate', mobile: '9876500001', ...overrides });
+    return res.body.data;
+  }
+
+  test('DELETE /api/candidates/:id soft-deletes — record disappears from the default list but is not destroyed', async () => {
+    const token = await loginAsAdmin();
+    const candidate = await createCandidate(token, { mobile: '9876500002' });
+
+    const del = await request(app)
+      .delete(`/api/candidates/${candidate.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(del.status).toBe(200);
+
+    const getDeleted = await request(app)
+      .get(`/api/candidates/${candidate.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(getDeleted.status).toBe(404);
+
+    const list = await request(app)
+      .get('/api/candidates')
+      .query({ search: candidate.candidate_number })
+      .set('Authorization', `Bearer ${token}`);
+    expect(list.body.data.rows.find((r) => r.id === candidate.id)).toBeUndefined();
+
+    const trash = await request(app)
+      .get('/api/candidates')
+      .query({ deleted: true, search: candidate.candidate_number })
+      .set('Authorization', `Bearer ${token}`);
+    expect(trash.body.data.rows.find((r) => r.id === candidate.id)).toBeDefined();
+  });
+
+  test('DELETE /api/candidates/:id on an already-deleted or missing candidate returns 404', async () => {
+    const token = await loginAsAdmin();
+    const res = await request(app)
+      .delete('/api/candidates/999999')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /api/candidates/:id/restore brings a deleted candidate back to normal listings', async () => {
+    const token = await loginAsAdmin();
+    const candidate = await createCandidate(token, { mobile: '9876500003' });
+
+    await request(app).delete(`/api/candidates/${candidate.id}`).set('Authorization', `Bearer ${token}`);
+
+    const restore = await request(app)
+      .post(`/api/candidates/${candidate.id}/restore`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(restore.status).toBe(200);
+    expect(restore.body.data.deleted_at).toBeNull();
+
+    const getRestored = await request(app)
+      .get(`/api/candidates/${candidate.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(getRestored.status).toBe(200);
+  });
+
+  test('POST /api/candidates/:id/restore on a candidate that is not deleted returns 400', async () => {
+    const token = await loginAsAdmin();
+    const candidate = await createCandidate(token, { mobile: '9876500004' });
+
+    const res = await request(app)
+      .post(`/api/candidates/${candidate.id}/restore`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(400);
+  });
+});

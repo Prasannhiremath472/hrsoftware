@@ -115,4 +115,39 @@ const statusHistory = asyncHandler(async (req, res) => {
   return ok(res, rows, 'OK');
 });
 
-module.exports = { create, list, getOne, update, assignCoordinator, submit, statusHistory };
+const remove = asyncHandler(async (req, res) => {
+  const existing = await candidateModel.findById(req.params.id);
+  if (!existing) return fail(res, 'Candidate not found', 404);
+
+  await candidateModel.softDelete(req.params.id, req.user.id);
+  await auditLogModel.record({
+    userId: req.user.id,
+    action: 'DELETE_CANDIDATE',
+    entityType: 'CANDIDATE',
+    entityId: existing.id,
+    description: `Deleted candidate ${existing.full_name} (${existing.candidate_number})`,
+    ipAddress: auditLogModel.ipFromReq(req),
+    userAgent: req.headers['user-agent'],
+  });
+  return ok(res, null, 'Candidate deleted');
+});
+
+const restore = asyncHandler(async (req, res) => {
+  const existing = await candidateModel.findByIdIncludingDeleted(req.params.id);
+  if (!existing) return fail(res, 'Candidate not found', 404);
+  if (!existing.deleted_at) return fail(res, 'Candidate is not deleted', 400);
+
+  const candidate = await candidateModel.restore(req.params.id);
+  await auditLogModel.record({
+    userId: req.user.id,
+    action: 'RESTORE_CANDIDATE',
+    entityType: 'CANDIDATE',
+    entityId: candidate.id,
+    description: `Restored candidate ${candidate.full_name} (${candidate.candidate_number})`,
+    ipAddress: auditLogModel.ipFromReq(req),
+    userAgent: req.headers['user-agent'],
+  });
+  return ok(res, candidate, 'Candidate restored');
+});
+
+module.exports = { create, list, getOne, update, assignCoordinator, submit, statusHistory, remove, restore };

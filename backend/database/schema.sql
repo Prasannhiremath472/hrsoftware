@@ -84,13 +84,19 @@ CREATE TABLE IF NOT EXISTS candidates (
   created_by INT UNSIGNED NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- Soft delete: NULL means active. Deleted candidates keep all related data
+  -- (KYC, documents, biometrics, etc.) intact and can be restored from Trash.
+  deleted_at DATETIME NULL DEFAULT NULL,
+  deleted_by INT UNSIGNED NULL DEFAULT NULL,
   CONSTRAINT fk_candidates_coordinator FOREIGN KEY (coordinator_id) REFERENCES coordinators(id) ON DELETE SET NULL,
   CONSTRAINT fk_candidates_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL,
+  CONSTRAINT fk_candidates_deleted_by FOREIGN KEY (deleted_by) REFERENCES users(id) ON DELETE SET NULL,
   INDEX idx_candidates_number (candidate_number),
   INDEX idx_candidates_coordinator (coordinator_id),
   INDEX idx_candidates_status (status),
   INDEX idx_candidates_mobile (mobile),
-  INDEX idx_candidates_created_at (created_at)
+  INDEX idx_candidates_created_at (created_at),
+  INDEX idx_candidates_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ----------------------------------------------------------------------------

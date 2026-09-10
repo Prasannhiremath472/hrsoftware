@@ -27,6 +27,7 @@ const listValidator = [
   query('status').optional().isString(),
   query('dateFrom').optional().isISO8601(),
   query('dateTo').optional().isISO8601(),
+  query('deleted').optional().isBoolean().toBoolean(),
 ];
 
 const coordinatorAssignValidator = [

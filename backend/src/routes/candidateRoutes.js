@@ -45,6 +45,8 @@ router.patch('/:id', updateCandidateValidator, validate, candidateController.upd
 router.patch('/:id/coordinator', coordinatorAssignValidator, validate, candidateController.assignCoordinator);
 router.post('/:id/submit', idParamValidator, validate, candidateController.submit);
 router.get('/:id/status-history', idParamValidator, validate, candidateController.statusHistory);
+router.delete('/:id', idParamValidator, validate, candidateController.remove);
+router.post('/:id/restore', idParamValidator, validate, candidateController.restore);
 
 // KYC
 router.get('/:id/kyc', idParamValidator, validate, kycController.getKyc);

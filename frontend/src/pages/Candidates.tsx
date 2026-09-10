@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Users } from 'lucide-react';
+import { Plus, Search, Trash2, Users } from 'lucide-react';
 
 import api, { extractErrorMessage } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
@@ -17,6 +17,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableWrapper } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 
 const ALL = 'ALL';
 const LIMIT = 20;
@@ -31,6 +32,8 @@ export default function Candidates() {
   const [status, setStatus] = useState(ALL);
   const [coordinators, setCoordinators] = useState<Coordinator[]>([]);
   const [coordinatorId, setCoordinatorId] = useState(ALL);
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,6 +89,22 @@ export default function Candidates() {
   }, [search, status, coordinatorId]);
 
   const hasFilters = Boolean(search) || status !== ALL || coordinatorId !== ALL;
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/candidates/${deleteTarget.id}`);
+      toast.success(`${deleteTarget.full_name} deleted`, 'Deleted candidates can be restored from Trash.');
+      setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setTotal((prev) => Math.max(0, prev - 1));
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Failed to delete candidate'));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div>
@@ -216,6 +235,15 @@ export default function Candidates() {
                               <Link to={`/candidates/${c.id}/summary`}>Summary</Link>
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(c)}
+                          >
+                            <Trash2 aria-hidden="true" />
+                            <span className="sr-only">Delete {c.full_name}</span>
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -229,6 +257,29 @@ export default function Candidates() {
           </>
         )}
       </Card>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete candidate?</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{deleteTarget?.full_name}</span> ({deleteTarget?.candidate_number})
+              will be removed from the candidates list. This does not permanently delete their data — it can be
+              restored later from Trash.
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} loading={deleting}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

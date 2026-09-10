@@ -176,6 +176,7 @@ async function query(sql, params = []) {
       id, candidate_number, full_name, mobile, email, dob, gender,
       coordinator_id, status: 'DRAFT', current_step: 'REGISTRATION',
       submitted_at: null, created_by, created_at: '2026-01-01', updated_at: '2026-01-01',
+      deleted_at: null, deleted_by: null,
     });
     return [{ insertId: id }];
   }
@@ -184,16 +185,44 @@ async function query(sql, params = []) {
     return [c ? [c] : []];
   }
   if (s.startsWith('SELECT c.*, co.name AS coordinator_name, co.status AS coordinator_status')) {
-    const c = state.candidates.find((x) => x.id === Number(params[0]));
+    // findById()/findByIdIncludingDeleted() share this SELECT prefix; only
+    // findById()'s query additionally filters deleted_at IS NULL.
+    const excludeDeleted = s.includes('deleted_at IS NULL');
+    const c = state.candidates.find(
+      (x) => x.id === Number(params[0]) && (!excludeDeleted || !x.deleted_at)
+    );
     if (!c) return [[]];
     const coord = state.coordinators.find((co) => co.id === c.coordinator_id);
     return [[{ ...c, coordinator_name: coord?.name, coordinator_status: coord?.status }]];
   }
   if (s.startsWith('SELECT c.*, co.name AS coordinator_name') && s.includes('FROM candidates c') && s.includes('LIMIT')) {
-    return [state.candidates.map((c) => ({ ...c, coordinator_name: state.coordinators.find((co) => co.id === c.coordinator_id)?.name }))];
+    const wantDeleted = s.includes('c.deleted_at IS NOT NULL');
+    return [state.candidates
+      .filter((c) => (wantDeleted ? Boolean(c.deleted_at) : !c.deleted_at))
+      .map((c) => ({ ...c, coordinator_name: state.coordinators.find((co) => co.id === c.coordinator_id)?.name }))];
   }
   if (s.startsWith('SELECT COUNT(*) AS total FROM candidates')) {
-    return [[{ total: state.candidates.length }]];
+    const wantDeleted = s.includes('c.deleted_at IS NOT NULL');
+    const count = state.candidates.filter((c) => (wantDeleted ? Boolean(c.deleted_at) : !c.deleted_at)).length;
+    return [[{ total: count }]];
+  }
+  if (s.startsWith('UPDATE candidates SET deleted_at = NOW()')) {
+    const [deletedBy, id] = params;
+    const c = state.candidates.find((x) => x.id === Number(id));
+    if (c && !c.deleted_at) {
+      c.deleted_at = '2026-01-02 00:00:00';
+      c.deleted_by = deletedBy;
+    }
+    return [{ affectedRows: c ? 1 : 0 }];
+  }
+  if (s.startsWith('UPDATE candidates SET deleted_at = NULL')) {
+    const id = params[0];
+    const c = state.candidates.find((x) => x.id === Number(id));
+    if (c && c.deleted_at) {
+      c.deleted_at = null;
+      c.deleted_by = null;
+    }
+    return [{ affectedRows: c ? 1 : 0 }];
   }
   if (s.startsWith('UPDATE candidates SET coordinator_id')) {
     const [coordinatorId, id] = params;

@@ -54,6 +54,9 @@ export interface Candidate {
   created_by: number | null;
   created_at: string;
   updated_at: string;
+  /** Soft delete — null means active. Set via DELETE /candidates/:id. */
+  deleted_at: string | null;
+  deleted_by: number | null;
 }
 
 /** Paginated list envelope used by /candidates and /audit-logs. */
