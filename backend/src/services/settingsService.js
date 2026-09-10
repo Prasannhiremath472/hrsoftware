@@ -5,7 +5,6 @@ const DEFAULTS = {
   max_file_size_mb: '10',
   require_original_verification: 'true',
   require_biometric: 'true',
-  require_signature: 'true',
   require_declaration: 'true',
 };
 

@@ -6,7 +6,6 @@ const originalVerificationModel = require('../models/originalVerificationModel')
 const photoModel = require('../models/photoModel');
 const biometricModel = require('../models/biometricModel');
 const declarationModel = require('../models/declarationModel');
-const signatureModel = require('../models/signatureModel');
 const settingsService = require('../services/settingsService');
 
 /**
@@ -55,11 +54,6 @@ async function validateForSubmit(candidateId) {
   if (settingsService.asBool(settings.require_declaration)) {
     const declaration = await declarationModel.findByCandidateId(candidateId);
     if (!declaration || !declaration.accepted) errors.push('Declaration has not been accepted');
-  }
-
-  if (settingsService.asBool(settings.require_signature)) {
-    const signature = await signatureModel.findByCandidateId(candidateId);
-    if (!signature) errors.push('Signature is missing');
   }
 
   return { valid: errors.length === 0, errors };

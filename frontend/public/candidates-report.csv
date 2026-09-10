@@ -1,0 +1,10 @@
+Candidate Number,Full Name,Mobile,Email,Status,Current Step,Coordinator,Created At,Submitted At
+CAN-2026-000009,Prefill Test Candidate,9123456789,,BIOMETRIC_PENDING,SIGNATURE,,2026-08-14 12:09:22,
+CAN-2026-000008,Prasann Hiremath,8390500747,prasannhiremath333@gmail.com,COMPLETED,SUBMITTED,Sunita Patil,2026-08-14 10:13:04,2026-08-14 10:16:03
+CAN-2026-000007,Prasann Hiremath,8390500747,prasannhiremath333@gmail.com,COMPLETED,SUBMITTED,Ravi Deshmukh,2026-08-14 10:07:34,2026-08-14 10:11:22
+CAN-2026-000006,Prasann Hiremath,08390500747,prasannhiremath333@gmail.com,COMPLETED,SUBMITTED,Sunita Patil,2026-08-11 05:44:01,2026-08-25 17:30:12
+CAN-2026-000001,Test Demo Candidate One,9000000001,demo.candidate1@example.com,DRAFT,LEFT_BIOMETRIC,Ravi Deshmukh,2026-08-10 06:19:22,
+CAN-2026-000002,Test Demo Candidate Two,9000000002,demo.candidate2@example.com,KYC_PENDING,KYC,Ravi Deshmukh,2026-08-10 06:19:22,
+CAN-2026-000003,Test Demo Candidate Three,9000000003,demo.candidate3@example.com,BIOMETRIC_PENDING,LEFT_BIOMETRIC,Sunita Patil,2026-08-10 06:19:22,
+CAN-2026-000004,Test Demo Candidate Four,9000000004,demo.candidate4@example.com,DOCUMENT_VERIFICATION_PENDING,SIGNATURE,Sunita Patil,2026-08-10 06:19:22,
+CAN-2026-000005,Test Demo Candidate Five,9000000005,demo.candidate5@example.com,COMPLETED,SUBMITTED,Ravi Deshmukh,2026-08-10 06:19:22,

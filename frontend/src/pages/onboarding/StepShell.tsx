@@ -3,9 +3,17 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /** Consistent title / description / body / actions frame for every wizard step. */
-export function StepHeading({ title, description }: { title: string; description?: ReactNode }) {
+export function StepHeading({
+  title,
+  description,
+  className,
+}: {
+  title: string;
+  description?: ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="mb-5">
+    <div className={cn('mb-5', className)}>
       <h2>{title}</h2>
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
     </div>

@@ -11,7 +11,6 @@ const originalVerificationController = require('../controllers/originalVerificat
 const photoController = require('../controllers/photoController');
 const biometricController = require('../controllers/biometricController');
 const declarationController = require('../controllers/declarationController');
-const signatureController = require('../controllers/signatureController');
 
 const {
   createCandidateValidator,
@@ -79,10 +78,6 @@ router.post('/:id/biometric/verify', verifyValidator, validate, biometricControl
 // Declaration
 router.get('/:id/declaration', idParamValidator, validate, declarationController.getDeclaration);
 router.put('/:id/declaration', declarationValidator, validate, declarationController.putDeclaration);
-
-// Signature
-router.post('/:id/signature', idParamValidator, validate, signatureController.saveSignature);
-router.get('/:id/signature', candidateIdValidator, validate, signatureController.streamSignature);
 
 // Fingerprint templates (Mantra non-Aadhaar SDK path — stores real templates
 // for 1:1 verification and 1:N duplicate detection, unlike the RD Service

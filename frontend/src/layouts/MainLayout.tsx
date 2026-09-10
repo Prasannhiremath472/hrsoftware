@@ -13,6 +13,8 @@ import {
 
 import { useAuth } from '@/context/AuthContext';
 import { cn, initialsFrom } from '@/lib/utils';
+import sadhyataLogo from '@/assets/sadhyata-logo.png';
+import onboardingBanner from '@/assets/onboarding-process-banner.png';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
@@ -77,9 +79,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 function SidebarBrand() {
   return (
     <div className="border-b border-sidebar-border px-5 py-4">
-      <span className="text-[17px] font-bold tracking-tight text-white">
-        HR<span className="text-primary-foreground/70">Onboard</span>
-      </span>
+      <div className="inline-flex rounded-md bg-white px-3 py-2 shadow-sm">
+        <img src={sadhyataLogo} alt="sadhyata — Enabling Dreams" className="h-7 w-auto" />
+      </div>
     </div>
   );
 }
@@ -144,6 +146,12 @@ export default function MainLayout() {
             <span className="hidden text-[15px] font-semibold sm:inline">Digital Onboarding &amp; KYC Portal</span>
             <span className="text-[15px] font-semibold sm:hidden">HR Onboard</span>
           </div>
+          <img
+            src={onboardingBanner}
+            alt=""
+            aria-hidden="true"
+            className="hidden h-16 w-auto object-contain lg:block"
+          />
           <div className="flex items-center gap-3">
             <div className="hidden text-right sm:block">
               <div className="text-sm font-semibold leading-tight">{user?.name}</div>

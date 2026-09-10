@@ -19,15 +19,12 @@ import {
 import type { WizardStepKey, WizardStepProps } from './types';
 
 const SECTIONS = [
-  { key: 'KYC', label: 'KYC Details' },
-  { key: 'ADDRESS', label: 'Address Details' },
-  { key: 'VERIFICATION', label: 'Documents' },
-  { key: 'ORIGINAL_VERIFICATION', label: 'Original Verification' },
+  { key: 'REGISTRATION', label: 'Registration (Identity, KYC & Address)' },
+  { key: 'DOCUMENT_CHECKLIST', label: 'Documents (Checklist, Upload, Verification & Originals)' },
   { key: 'PHOTO', label: 'Photo' },
   { key: 'LEFT_BIOMETRIC', label: 'Left Hand Biometric' },
   { key: 'RIGHT_BIOMETRIC', label: 'Right Hand Biometric' },
   { key: 'DECLARATION', label: 'Declaration' },
-  { key: 'SIGNATURE', label: 'Signature' },
 ] as const;
 
 type SectionKey = (typeof SECTIONS)[number]['key'];
@@ -73,16 +70,16 @@ export default function ReviewStep({ candidateId, goToStep, onSaved }: ReviewSte
         ]);
 
         const hands = biometric.map((b: { hand: string }) => b.hand);
+        const documentsVerified =
+          documents.length > 0 && documents.every((d: { status: string }) => d.status === 'VERIFIED');
+        const originalsDone = Boolean(ov?.originals_verified && ov?.self_attested_received);
         setChecks({
-          KYC: Boolean(kyc?.is_completed),
-          ADDRESS: Boolean(address?.is_completed),
-          VERIFICATION: documents.length > 0 && documents.every((d: { status: string }) => d.status === 'VERIFIED'),
-          ORIGINAL_VERIFICATION: Boolean(ov?.originals_verified && ov?.self_attested_received),
+          REGISTRATION: Boolean(kyc?.is_completed) && Boolean(address?.is_completed),
+          DOCUMENT_CHECKLIST: documentsVerified && originalsDone,
           PHOTO: Boolean(photoOk),
           LEFT_BIOMETRIC: hands.includes('LEFT_HAND'),
           RIGHT_BIOMETRIC: hands.includes('RIGHT_HAND'),
           DECLARATION: null,
-          SIGNATURE: null,
         });
       } catch (err) {
         toast.error(extractErrorMessage(err, 'Failed to load review data'));

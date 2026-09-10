@@ -9,7 +9,6 @@ export interface AppSettings {
   max_file_size_mb: string;
   require_original_verification: string;
   require_biometric: string;
-  require_signature: string;
   require_declaration: string;
   [key: string]: string;
 }
@@ -17,7 +16,6 @@ export interface AppSettings {
 export const SETTING_FLAGS = [
   ['require_original_verification', 'Require Original Verification'],
   ['require_biometric', 'Require Biometric Capture'],
-  ['require_signature', 'Require Signature'],
   ['require_declaration', 'Require Declaration'],
 ] as const;
 

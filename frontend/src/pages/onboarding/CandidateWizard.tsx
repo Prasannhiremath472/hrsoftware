@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowLeft, Check, FileText } from 'lucide-react';
 
@@ -16,28 +16,36 @@ import StatusBadge from '@/components/shared/StatusBadge';
 import type { CandidateDocument, DocumentType } from '@/types';
 import { RESUME_STEP, STEPS, type WizardStepKey } from './wizardSteps';
 
+const VALID_STEP_KEYS = new Set(STEPS.map((s) => s.key));
+
+import RegistrationStep from './RegistrationStep';
 import KycStep from './KycStep';
 import AddressStep from './AddressStep';
-import DocumentChecklistStep from './DocumentChecklistStep';
-import DocumentUploadStep from './DocumentUploadStep';
-import DocumentVerificationStep from './DocumentVerificationStep';
-import OriginalVerificationStep from './OriginalVerificationStep';
+import DocumentStep from './DocumentStep';
 import PhotoStep from './PhotoStep';
 import BiometricStep from './BiometricStep';
 import DeclarationStep from './DeclarationStep';
-import SignatureStep from './SignatureStep';
 import ReviewStep from './ReviewStep';
 
 type StepState = 'done' | 'current' | 'pending';
 
 export default function CandidateWizard() {
-  const { id } = useParams<{ id: string }>();
+  const { id: routeId } = useParams<{ id: string }>();
+  // "/candidates/new" mounts this same component with no id — a brand new
+  // candidate that doesn't exist yet. isNew flips to false forever once a
+  // candidate is created (see handleRegistered), without needing a route
+  // change: the wizard just keeps going with the freshly-created id.
+  const [newCandidateId, setNewCandidateId] = useState<string | null>(null);
+  const isNew = !routeId && !newCandidateId;
+  const id = routeId ?? newCandidateId ?? undefined;
+
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const shouldReduceMotion = useReducedMotion();
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [activeStep, setActiveStep] = useState<WizardStepKey>('KYC');
+  const [loading, setLoading] = useState(!isNew);
+  const [activeStep, setActiveStep] = useState<WizardStepKey>('REGISTRATION');
   const [selectedDocTypes, setSelectedDocTypes] = useState<number[]>([]);
 
   const loadCandidate = useCallback(async (): Promise<Candidate | null> => {
@@ -53,23 +61,41 @@ export default function CandidateWizard() {
     }
   }, [id, navigate]);
 
+  // Called by RegistrationStep once it creates a brand-new candidate. The
+  // wizard then continues in-place (no route change) with real data —
+  // loadCandidate below picks it up once newCandidateId flows into `id`.
+  const handleRegistered = useCallback((createdId: number) => {
+    setNewCandidateId(String(createdId));
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       const data = await loadCandidate();
       if (!cancelled && data) {
-        setActiveStep(RESUME_STEP[data.current_step] ?? 'KYC');
+        // A `?step=` query param (e.g. from just-completed registration)
+        // takes priority over the server-derived resume step, then is
+        // cleared so it doesn't stick around across future visits/reloads.
+        const requestedStep = searchParams.get('step');
+        if (requestedStep && VALID_STEP_KEYS.has(requestedStep as WizardStepKey)) {
+          setActiveStep(requestedStep as WizardStepKey);
+          setSearchParams((params) => {
+            params.delete('step');
+            return params;
+          }, { replace: true });
+        } else {
+          setActiveStep(RESUME_STEP[data.current_step] ?? 'KYC');
+        }
       }
 
-      // selectedDocTypes drives which document types the Upload step shows.
-      // It must be seeded from server truth here — not left to reset to []
-      // whenever the wizard mounts — otherwise resuming a candidate directly
-      // on or after the Upload step (without revisiting the Checklist step
-      // first) makes previously-selected/uploaded documents disappear even
-      // though they were saved. The saved checklist selection (persisted by
-      // DocumentChecklistStep) is authoritative once it exists; before that,
-      // fall back to mandatory types ∪ already-uploaded types.
+      // selectedDocTypes drives which document types DocumentStep's upload
+      // section shows. It must be seeded from server truth here — not left
+      // to reset to [] whenever the wizard mounts — otherwise resuming a
+      // candidate makes previously-selected/uploaded documents disappear
+      // even though they were saved. The saved checklist selection is
+      // authoritative once it exists; before that, fall back to mandatory
+      // types ∪ already-uploaded types.
       if (!cancelled && id) {
         try {
           const [typesRes, docsRes, selectionRes] = await Promise.all([
@@ -102,16 +128,32 @@ export default function CandidateWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadCandidate, id]);
 
-  const goToStep = (key: WizardStepKey) => setActiveStep(key);
+  // Every step past Registration needs a real candidate id to load or save
+  // anything against — so until Registration has actually created one,
+  // those steps must stay unreachable rather than silently rendering blank.
+  const isStepLocked = (key: WizardStepKey) => key !== 'REGISTRATION' && !candidate;
+
+  const goToStep = (key: WizardStepKey) => {
+    if (isStepLocked(key)) return;
+    setActiveStep(key);
+  };
 
   const goNext = (currentKey: WizardStepKey) => {
     const idx = STEPS.findIndex((s) => s.key === currentKey);
-    if (idx >= 0 && idx < STEPS.length - 1) {
-      setActiveStep(STEPS[idx + 1].key);
+    // Skip over hidden steps (Registration/KYC/Address are now captured up
+    // front) rather than landing on one via the forward flow.
+    for (let next = idx + 1; next < STEPS.length; next += 1) {
+      if (!STEPS[next].hidden) {
+        setActiveStep(STEPS[next].key);
+        return;
+      }
     }
   };
 
-  if (loading || !candidate || !id) {
+  // In "new" mode there is no candidate yet by definition — only actual
+  // loading (fetching an existing candidate) or a missing id after loading
+  // finishes should show the skeleton/bail out.
+  if (!isNew && (loading || !candidate || !id)) {
     return (
       <div>
         <Skeleton className="mb-5 h-9 w-64" />
@@ -123,23 +165,49 @@ export default function CandidateWizard() {
     );
   }
 
+  // Progress ("done" vs "pending") is anchored to the candidate's actual
+  // server-side progress, not the literal activeStep — otherwise detouring
+  // into a hidden step (e.g. editing KYC from Review) would mark every
+  // visible step "done" relative to that detour instead of real progress.
+  const progressIdx = candidate
+    ? STEPS.findIndex((s) => s.key === (RESUME_STEP[candidate.current_step] ?? activeStep))
+    : 0;
   const activeIdx = STEPS.findIndex((s) => s.key === activeStep);
 
   const stepState = (key: WizardStepKey): StepState => {
     if (key === activeStep) return 'current';
     // "Rejected" is a candidate-level status, so a rejected application marks the
     // document-verification step rather than any individual step here.
-    return STEPS.findIndex((s) => s.key === key) < activeIdx ? 'done' : 'pending';
-  };
-
-  const commonProps = {
-    candidateId: id,
-    candidate,
-    onSaved: loadCandidate,
-    goNext: () => goNext(activeStep),
+    const keyIdx = STEPS.findIndex((s) => s.key === key);
+    return keyIdx < Math.max(progressIdx, activeIdx) ? 'done' : 'pending';
   };
 
   const renderStep = () => {
+    // Registration is the only step that can render before a candidate
+    // exists (candidate/id are null in "new" mode), so it takes its own
+    // props shape rather than the shared commonProps below.
+    if (activeStep === 'REGISTRATION') {
+      return (
+        <RegistrationStep
+          candidateId={id ?? null}
+          candidate={candidate}
+          onSaved={loadCandidate}
+          goNext={() => goNext('REGISTRATION')}
+          onCreated={handleRegistered}
+        />
+      );
+    }
+
+    // Every other step requires a real candidate — guaranteed by the guard
+    // above (isNew steps never advance past REGISTRATION until one exists).
+    if (!candidate || !id) return null;
+    const commonProps = {
+      candidateId: id,
+      candidate,
+      onSaved: loadCandidate,
+      goNext: () => goNext(activeStep),
+    };
+
     switch (activeStep) {
       case 'KYC':
         return <KycStep {...commonProps} />;
@@ -147,18 +215,12 @@ export default function CandidateWizard() {
         return <AddressStep {...commonProps} />;
       case 'DOCUMENT_CHECKLIST':
         return (
-          <DocumentChecklistStep
+          <DocumentStep
             {...commonProps}
             selectedDocTypes={selectedDocTypes}
             setSelectedDocTypes={setSelectedDocTypes}
           />
         );
-      case 'DOCUMENT_UPLOAD':
-        return <DocumentUploadStep {...commonProps} selectedDocTypes={selectedDocTypes} />;
-      case 'VERIFICATION':
-        return <DocumentVerificationStep {...commonProps} />;
-      case 'ORIGINAL_VERIFICATION':
-        return <OriginalVerificationStep {...commonProps} />;
       case 'PHOTO':
         return <PhotoStep {...commonProps} />;
       case 'LEFT_BIOMETRIC':
@@ -167,42 +229,8 @@ export default function CandidateWizard() {
         return <BiometricStep {...commonProps} hand="RIGHT_HAND" />;
       case 'DECLARATION':
         return <DeclarationStep {...commonProps} />;
-      case 'SIGNATURE':
-        return <SignatureStep {...commonProps} />;
       case 'REVIEW':
         return <ReviewStep {...commonProps} goToStep={goToStep} />;
-      case 'REGISTRATION':
-        return (
-          <div className="space-y-3">
-            <h2>Registration</h2>
-            <p className="text-sm text-muted-foreground">
-              Basic registration details were captured when this candidate was created.
-            </p>
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Full Name</dt>
-                <dd className="text-sm font-medium">{candidate.full_name}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Mobile</dt>
-                <dd className="text-sm font-medium tabular">{candidate.mobile}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Email</dt>
-                <dd className="text-sm font-medium">{candidate.email || '—'}</dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Coordinator</dt>
-                <dd className="text-sm font-medium">{candidate.coordinator_name || 'Unassigned'}</dd>
-              </div>
-            </dl>
-            <div className="flex justify-end pt-2">
-              <Button type="button" onClick={() => goNext('REGISTRATION')}>
-                Continue to KYC
-              </Button>
-            </div>
-          </div>
-        );
       default:
         return null;
     }
@@ -216,16 +244,22 @@ export default function CandidateWizard() {
             <ArrowLeft aria-hidden="true" />
             All candidates
           </Button>
-          <h1 className="truncate">{candidate.full_name}</h1>
+          <h1 className="truncate">{candidate ? candidate.full_name : 'New Candidate'}</h1>
           <p className="text-sm text-muted-foreground">
-            <span className="font-mono text-xs">{candidate.candidate_number}</span>
-            <span aria-hidden="true"> · </span>
-            <span className="tabular">{candidate.mobile}</span>
+            {candidate ? (
+              <>
+                <span className="font-mono text-xs">{candidate.candidate_number}</span>
+                <span aria-hidden="true"> · </span>
+                <span className="tabular">{candidate.mobile}</span>
+              </>
+            ) : (
+              'Register to begin onboarding'
+            )}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={candidate.status} />
-          {candidate.status === 'COMPLETED' && (
+          {candidate && <StatusBadge status={candidate.status} />}
+          {candidate?.status === 'COMPLETED' && (
             <Button variant="outline" size="sm" onClick={() => navigate(`/candidates/${id}/summary`)}>
               <FileText aria-hidden="true" />
               Summary
@@ -242,19 +276,24 @@ export default function CandidateWizard() {
               className="scrollbar-thin flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible"
               aria-label="Onboarding steps"
             >
-              {STEPS.map((s, i) => {
+              {STEPS.filter((s) => !s.hidden).map((s, i) => {
                 const state = stepState(s.key);
+                const locked = isStepLocked(s.key);
                 return (
                   <li key={s.key} className="shrink-0 lg:w-full">
                     <button
                       type="button"
                       onClick={() => goToStep(s.key)}
+                      disabled={locked}
+                      aria-disabled={locked}
+                      title={locked ? 'Complete Registration first' : undefined}
                       aria-current={state === 'current' ? 'step' : undefined}
                       className={cn(
                         'flex w-full min-h-11 items-center gap-2.5 whitespace-nowrap rounded-md px-2.5 py-2 text-left text-sm font-medium transition-colors lg:whitespace-normal',
                         state === 'current' && 'bg-primary/10 text-primary',
                         state === 'done' && 'text-foreground hover:bg-secondary',
-                        state === 'pending' && 'text-muted-foreground hover:bg-secondary'
+                        state === 'pending' && 'text-muted-foreground hover:bg-secondary',
+                        locked && 'cursor-not-allowed opacity-50 hover:bg-transparent'
                       )}
                     >
                       <span
