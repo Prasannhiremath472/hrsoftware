@@ -224,6 +224,17 @@ async function query(sql, params = []) {
     }
     return [{ affectedRows: c ? 1 : 0 }];
   }
+  if (s === 'DELETE FROM candidates WHERE id = ?') {
+    // Mimics ON DELETE CASCADE for the related fake-state tables so a test
+    // can confirm permanent delete actually removes associated data too.
+    const id = Number(params[0]);
+    const before = state.candidates.length;
+    state.candidates = state.candidates.filter((x) => x.id !== id);
+    state.candidate_kyc = state.candidate_kyc.filter((x) => x.candidate_id !== id);
+    state.candidate_addresses = state.candidate_addresses.filter((x) => x.candidate_id !== id);
+    state.candidate_documents = state.candidate_documents.filter((x) => x.candidate_id !== id);
+    return [{ affectedRows: before === state.candidates.length ? 0 : 1 }];
+  }
   if (s.startsWith('UPDATE candidates SET coordinator_id')) {
     const [coordinatorId, id] = params;
     const c = state.candidates.find((x) => x.id === Number(id));

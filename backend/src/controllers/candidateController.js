@@ -6,6 +6,7 @@ const auditLogModel = require('../models/auditLogModel');
 const statusHistoryModel = require('../models/statusHistoryModel');
 const submitValidationService = require('../services/submitValidationService');
 const adminNotificationService = require('../services/adminNotificationService');
+const storageService = require('../services/storageService');
 const { pool, withTransaction } = require('../db/pool');
 
 const create = asyncHandler(async (req, res) => {
@@ -150,4 +151,43 @@ const restore = asyncHandler(async (req, res) => {
   return ok(res, candidate, 'Candidate restored');
 });
 
-module.exports = { create, list, getOne, update, assignCoordinator, submit, statusHistory, remove, restore };
+const permanentlyDelete = asyncHandler(async (req, res) => {
+  const existing = await candidateModel.findByIdIncludingDeleted(req.params.id);
+  if (!existing) return fail(res, 'Candidate not found', 404);
+  if (!existing.deleted_at) {
+    return fail(res, 'Only candidates already in Trash can be permanently deleted', 400);
+  }
+
+  // Audit log first — once permanentDelete() runs, the candidate row (and
+  // its cascaded related rows) are gone, so this is the last chance to
+  // record what was deleted.
+  await auditLogModel.record({
+    userId: req.user.id,
+    action: 'PERMANENTLY_DELETE_CANDIDATE',
+    entityType: 'CANDIDATE',
+    entityId: existing.id,
+    description: `Permanently deleted candidate ${existing.full_name} (${existing.candidate_number})`,
+    ipAddress: auditLogModel.ipFromReq(req),
+    userAgent: req.headers['user-agent'],
+  });
+
+  // Uploaded files live on disk, outside the database's control — remove
+  // them before the DB cascade drops the rows that reference them.
+  await storageService.deleteCandidateFiles(existing.id);
+  await candidateModel.permanentDelete(existing.id);
+
+  return ok(res, null, 'Candidate permanently deleted');
+});
+
+module.exports = {
+  create,
+  list,
+  getOne,
+  update,
+  assignCoordinator,
+  submit,
+  statusHistory,
+  remove,
+  restore,
+  permanentlyDelete,
+};

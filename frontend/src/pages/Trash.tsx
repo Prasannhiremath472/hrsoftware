@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RotateCcw, Search, Trash2 } from 'lucide-react';
+import { RotateCcw, Search, Trash2, XCircle } from 'lucide-react';
 
 import api, { extractErrorMessage } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { SkeletonRows } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableWrapper } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogBody, DialogFooter, DialogTitle } from '@/components/ui/dialog';
 
 const LIMIT = 20;
 
@@ -25,6 +26,8 @@ export default function Trash() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [restoringId, setRestoringId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Candidate | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -73,6 +76,22 @@ export default function Trash() {
       toast.error(extractErrorMessage(err, 'Failed to restore candidate'));
     } finally {
       setRestoringId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/candidates/${deleteTarget.id}/permanent`);
+      toast.success(`${deleteTarget.full_name} permanently deleted`);
+      setRows((prev) => prev.filter((r) => r.id !== deleteTarget.id));
+      setTotal((prev) => Math.max(0, prev - 1));
+      setDeleteTarget(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Failed to permanently delete candidate'));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -150,15 +169,26 @@ export default function Trash() {
                         {c.deleted_at ? formatDate(c.deleted_at) : '—'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestore(c)}
-                          loading={restoringId === c.id}
-                        >
-                          <RotateCcw aria-hidden="true" />
-                          Restore
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestore(c)}
+                            loading={restoringId === c.id}
+                          >
+                            <RotateCcw aria-hidden="true" />
+                            Restore
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(c)}
+                          >
+                            <XCircle aria-hidden="true" />
+                            Delete Permanently
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -171,6 +201,29 @@ export default function Trash() {
           </>
         )}
       </Card>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete permanently?</DialogTitle>
+          </DialogHeader>
+          <DialogBody>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">{deleteTarget?.full_name}</span> ({deleteTarget?.candidate_number})
+              and all of their data — KYC, address, documents, photo, biometric captures — will be permanently
+              erased. <span className="font-medium text-foreground">This cannot be undone.</span>
+            </p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handlePermanentDelete} loading={deleting}>
+              Delete Permanently
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

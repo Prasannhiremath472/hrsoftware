@@ -714,4 +714,50 @@ describe('Candidate soft delete', () => {
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(400);
   });
+
+  test('DELETE /api/candidates/:id/permanent on an active (non-deleted) candidate is refused', async () => {
+    const token = await loginAsAdmin();
+    const candidate = await createCandidate(token, { mobile: '9876500005' });
+
+    const res = await request(app)
+      .delete(`/api/candidates/${candidate.id}/permanent`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(400);
+
+    // Still fetchable — nothing was actually deleted.
+    const getStillThere = await request(app)
+      .get(`/api/candidates/${candidate.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(getStillThere.status).toBe(200);
+  });
+
+  test('DELETE /api/candidates/:id/permanent removes a trashed candidate for good — not restorable, gone from Trash', async () => {
+    const token = await loginAsAdmin();
+    const candidate = await createCandidate(token, { mobile: '9876500006' });
+    await request(app).delete(`/api/candidates/${candidate.id}`).set('Authorization', `Bearer ${token}`);
+
+    const del = await request(app)
+      .delete(`/api/candidates/${candidate.id}/permanent`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(del.status).toBe(200);
+
+    const trash = await request(app)
+      .get('/api/candidates')
+      .query({ deleted: true, search: candidate.candidate_number })
+      .set('Authorization', `Bearer ${token}`);
+    expect(trash.body.data.rows.find((r) => r.id === candidate.id)).toBeUndefined();
+
+    const restoreAttempt = await request(app)
+      .post(`/api/candidates/${candidate.id}/restore`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(restoreAttempt.status).toBe(404);
+  });
+
+  test('DELETE /api/candidates/:id/permanent on a candidate that never existed returns 404', async () => {
+    const token = await loginAsAdmin();
+    const res = await request(app)
+      .delete('/api/candidates/999999/permanent')
+      .set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(404);
+  });
 });

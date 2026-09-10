@@ -57,4 +57,31 @@ async function deleteFile(storagePath) {
   }
 }
 
-module.exports = { STORAGE_ROOT, saveBuffer, resolveAbsolutePath, deleteFile, ensureDirSync, extFromMime };
+/**
+ * Removes storage/<category>/<candidateId>/ entirely — used when a candidate
+ * is permanently deleted, since saveBuffer() scopes every uploaded file
+ * (documents, photos, ...) under a per-candidate directory per category.
+ */
+async function deleteCandidateFiles(candidateId) {
+  const categories = ['documents', 'photos', 'signatures'];
+  await Promise.all(
+    categories.map(async (category) => {
+      const dir = path.join(STORAGE_ROOT, category, String(candidateId));
+      try {
+        await fsp.rm(dir, { recursive: true, force: true });
+      } catch (_) {
+        // ignore missing directory
+      }
+    })
+  );
+}
+
+module.exports = {
+  STORAGE_ROOT,
+  saveBuffer,
+  resolveAbsolutePath,
+  deleteFile,
+  deleteCandidateFiles,
+  ensureDirSync,
+  extFromMime,
+};

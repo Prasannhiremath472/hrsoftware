@@ -47,6 +47,7 @@ router.post('/:id/submit', idParamValidator, validate, candidateController.submi
 router.get('/:id/status-history', idParamValidator, validate, candidateController.statusHistory);
 router.delete('/:id', idParamValidator, validate, candidateController.remove);
 router.post('/:id/restore', idParamValidator, validate, candidateController.restore);
+router.delete('/:id/permanent', idParamValidator, validate, candidateController.permanentlyDelete);
 
 // KYC
 router.get('/:id/kyc', idParamValidator, validate, kycController.getKyc);

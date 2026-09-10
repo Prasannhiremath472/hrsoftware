@@ -147,6 +147,19 @@ async function findByIdIncludingDeleted(id) {
   return rows[0] || null;
 }
 
+/**
+ * Permanently removes the candidate row. Every related table (KYC, address,
+ * documents, original-verification, photo, biometric, declaration,
+ * signature, status history, fingerprint templates, document selection) has
+ * ON DELETE CASCADE, so a single DELETE here removes all of it at the DB
+ * level. Uploaded files on disk are NOT touched by this — the caller must
+ * separately run storageService.deleteCandidateFiles(id) beforehand, since
+ * that's a filesystem operation outside the database's control.
+ */
+async function permanentDelete(id) {
+  await pool.query('DELETE FROM candidates WHERE id = ?', [id]);
+}
+
 module.exports = {
   create,
   findById,
@@ -158,4 +171,5 @@ module.exports = {
   updateStatus,
   softDelete,
   restore,
+  permanentDelete,
 };
